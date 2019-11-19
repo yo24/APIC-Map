@@ -1,0 +1,227 @@
+---
+swagger: "2.0"
+info:
+  x-ibm-name: "map-foreach"
+  title: "map-foreach"
+  version: "1.0.0"
+schemes:
+- "https"
+host: "$(catalog.host)"
+basePath: "/mapforeach"
+consumes:
+- "application/json"
+produces:
+- "application/json"
+securityDefinitions: {}
+x-ibm-configuration:
+  testable: true
+  enforced: true
+  cors:
+    enabled: true
+  assembly:
+    execute:
+    - gatewayscript:
+        title: "prep"
+        version: "1.0.0"
+        source: "// store variable\napim.setvariable(\"hogeKey\", \"hogeVal\");\n\n\
+          // add array element\nvar body = apim.getvariable(\"message.body\");\nvar\
+          \ itemArray = body[\"itemArray\"];\nfor (let i=0; i<1000; i++) {\n  let\
+          \ val = '{ \"arrayStr\" : \"bbb\", \"arrayInt\" : ' + i + ' }';\n  itemArray.push(JSON.parse(val));\n\
+          }\nbody[\"itemArray\"] = itemArray;\napim.setvariable(\"message.body\",\
+          \ body);"
+    - operation-switch:
+        title: "operation-switch"
+        case:
+        - operations:
+          - verb: "post"
+            path: "/map"
+          execute:
+          - map:
+              title: "map-foreach-with-value"
+              inputs:
+                req:
+                  schema:
+                    $ref: "#/definitions/request"
+                  variable: "message.body"
+              outputs:
+                res:
+                  schema:
+                    type: "object"
+                    properties:
+                      resStr:
+                        type: "string"
+                        name: "resStr"
+                      resInt:
+                        type: "integer"
+                        format: "int32"
+                        name: "resInt"
+                      resFixed:
+                        type: "string"
+                        name: "resFixed"
+                      resArray:
+                        type: "array"
+                        items:
+                          type: "object"
+                          properties:
+                            resArrayStr:
+                              type: "string"
+                              name: "resArrayStr"
+                            resArrayInt:
+                              type: "integer"
+                              format: "int32"
+                              name: "resArrayInt"
+                        name: "resArray"
+                  variable: "message.body"
+              actions:
+              - set: "res.resStr"
+                from: "req.itemStr"
+              - set: "res.resInt"
+                from: "req.itemInt"
+              - set: "res.resFixed"
+                default: "$(api.name)"
+              - create: "res.resArray"
+                foreach: "req.itemArray"
+                from: "req.itemArray"
+                actions:
+                - set: "resArrayStr"
+                  from: "arrayStr"
+                  value: "var strVal=\"aaaaa\"; strVal;"
+                - set: "resArrayInt"
+                  from: "arrayInt"
+                  value: "var intVal=1+100; intVal;"
+              version: "1.0.0"
+        - operations:
+          - verb: "post"
+            path: "/script"
+          execute:
+          - gatewayscript:
+              title: "gatewayscript"
+              version: "1.0.0"
+              source: "// get request values\nvar req = apim.getvariable('message.body');\n\
+                \n// add array element\nvar res = {};\nres['resStr'] = req['reqStr'];\n\
+                res['resStr'] = req['reqInt'];\nres['resFixed'] = '$(api.name)';\n\
+                \n// create output itemarray\nvar resArray = [];\nfor (const duumy\
+                \ of req['itemArray']) {\n  let strVal=\"aaaaa\";\n  let intVal=1+100;\n\
+                \  var map = {};\n  map['arrayStr'] = strVal;\n  map['arrayInt'] =\
+                \ intVal;\n  resArray.push(map);\n}\nres['resArray'] = resArray;\n\
+                apim.setvariable('message.body', res);"
+        - operations:
+          - verb: "post"
+            path: "/map_without_value"
+          execute:
+          - map:
+              title: "map-foreach-without-value"
+              inputs:
+                req:
+                  schema:
+                    $ref: "#/definitions/request"
+                  variable: "message.body"
+              outputs:
+                res:
+                  schema:
+                    type: "object"
+                    properties:
+                      resStr:
+                        type: "string"
+                        name: "resStr"
+                      resInt:
+                        type: "integer"
+                        format: "int32"
+                        name: "resInt"
+                      resFixed:
+                        type: "string"
+                        name: "resFixed"
+                      resArray:
+                        type: "array"
+                        items:
+                          type: "object"
+                          properties:
+                            resArrayStr:
+                              type: "string"
+                              name: "resArrayStr"
+                            resArrayInt:
+                              type: "integer"
+                              format: "int32"
+                              name: "resArrayInt"
+                        name: "resArray"
+                  variable: "message.body"
+              actions:
+              - set: "res.resStr"
+                from: "req.itemStr"
+              - set: "res.resInt"
+                from: "req.itemInt"
+              - set: "res.resFixed"
+                default: "$(hogeKey)"
+              - create: "res.resArray"
+                foreach: "req.itemArray"
+                from: "req.itemArray"
+                actions:
+                - set: "resArrayStr"
+                  from: "arrayStr"
+                - set: "resArrayInt"
+                  from: "arrayInt"
+              version: "1.0.0"
+        otherwise: []
+        version: "1.0.0"
+  phase: "realized"
+paths:
+  /map:
+    post:
+      responses:
+        200:
+          description: "200 OK"
+      parameters:
+      - name: "req"
+        required: false
+        in: "body"
+        schema:
+          $ref: "#/definitions/request"
+  /script:
+    post:
+      responses:
+        200:
+          description: "200 OK"
+      parameters:
+      - name: "request"
+        required: false
+        in: "body"
+        schema:
+          $ref: "#/definitions/request"
+  /map_without_value:
+    post:
+      responses:
+        200:
+          description: "200 OK"
+      parameters:
+      - name: "request"
+        required: false
+        in: "body"
+        schema:
+          $ref: "#/definitions/request"
+definitions:
+  request:
+    properties:
+      itemStr:
+        type: "string"
+        example: "def"
+      itemInt:
+        type: "integer"
+        format: "int32"
+        example: 99
+      itemArray:
+        type: "array"
+        items:
+          type: "object"
+          properties:
+            arrayStr:
+              type: "string"
+            arrayInt:
+              type: "integer"
+              format: "int32"
+        example:
+        - arrayStr: "abc"
+          arrayInt: 12
+        - arrayStr: "abc"
+          arrayInt: 13
+    additionalProperties: false
+tags: []
